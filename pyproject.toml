@@ -11,6 +11,8 @@ requires-python = ">=3.13"
 dependencies = [
 	"bluedot",
 	"pymoduline",
+	"python-dbus",
+	"netifaces"
 ]
 
 [project.readme]

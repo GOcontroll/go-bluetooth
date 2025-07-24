@@ -7,7 +7,7 @@ import rfcommServerConstants as commands
 import server
 from PyModuline import wifi, networking
 
-logger = logging.GetLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def wireless_settings(commandnmbr, arg):

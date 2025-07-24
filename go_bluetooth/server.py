@@ -2,21 +2,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-server = None
+bt_server = None
 
 
 def set_server(server):
-    global server
-    server = server
+    global bt_server
+    server = bt_server
 
 
 def get_server():
-    global server
-    return server
+    global bt_server
+    return bt_server
 
 
 # slightly expanded s.send function so not every command has to convert the string to bytes
 def send(string):
-    global server
     logger.debug(f"outgoing:\n{bytes(string, 'utf-8')}")
-    server.send(bytes(string, "utf-8"))
+    bt_server.send(bytes(string, "utf-8"))

@@ -4,6 +4,7 @@ import rfcommServerConstants as commands
 import server
 
 current_passkey = ""
+trust_device = False
 
 
 def set_passkey(key: str):
@@ -21,7 +22,6 @@ def verify_device(commandnmbr, arg):
     arg = arg[1:]
 
     if level1 == commands.DEVICE_VERIFICATION_ATTEMPT:
-        global trust_device
         split_arg = arg.split(":")
         device_id = split_arg[-1]
         entered_key = ":".join(split_arg[:-1]).lower()

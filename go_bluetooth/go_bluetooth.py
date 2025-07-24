@@ -8,6 +8,7 @@ import traceback
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 from signal import pause
+import auth
 
 import rfcommServerConstants as commands
 import server
@@ -159,7 +160,7 @@ def request_enabled_features(commandnmbr, arg):
     level1 = ord(arg[0])
 
     if level1 == commands.INIT_FEATURES:
-        features_out = "\n".join(get_features().values())
+        features_out = "\n".join(map(str, get_features().values()))
         features_out = features_out.lower()
         logger.debug(f"features: {features_out}")
         server.send(chr(commandnmbr) + features_out)
@@ -178,7 +179,7 @@ def request_enabled_features(commandnmbr, arg):
 
 def reboot_controller():
     logger.info("rebooting...")
-    server.get_server().disconnect_client()
+    server.bt_server.disconnect_client()
     global kill_threads_shutdown
     kill_threads_shutdown = True
     tf.join()
@@ -256,13 +257,12 @@ def command_list(byte, string):
 
 # function that gets called when the controller receives a message
 def data_received(data):
-    logger.debug(f"incoming:\n{data}")
+    logger.debug(f"incoming:\n{data}\ntrusted: {auth.trust_device}")
     try:
-        global trust_device
         global transfer_mode
         first_byte = data[0]
         if (
-            trust_device
+            auth.trust_device
             or first_byte == commands.VERIFY_DEVICE
             or first_byte == commands.REQUEST_ENABLED_FEATURES
         ):
@@ -283,7 +283,7 @@ def data_received(data):
 
 # function that gets called when a device connects to the server
 def when_client_connects():
-    logger.info(f"client connected: {server.get_server().client_address}")
+    logger.info(f"client connected: {server.bt_server.client_address}")
     global read_can_bus_load
     global tf
     global kill_threads
@@ -292,7 +292,8 @@ def when_client_connects():
     kill_threads = False
     kill_threads_shutdown = False
     try:
-        import go_leds
+        #huh?
+        import go_leds.go_leds
 
         led1 = go_leds.go_leds.get_led(1)
         tf = threading.Thread(target=status_led_gocontroll, args=(led1,))
@@ -301,8 +302,7 @@ def when_client_connects():
         pass
     except Exception as ex:
         logger.error(f"Unknown error when trying to init the status led thread:\n{ex}")
-    global trust_device
-    trust_device = False
+    auth.trust_device = False
     request_enabled_features(
         commands.REQUEST_ENABLED_FEATURES, chr(commands.INIT_FEATURES)
     )
@@ -352,10 +352,11 @@ def main():
     set_passkey(conf.get("pass_hash"))
     s = BluetoothServer(
         data_received,
+        encoding=None,
         when_client_connects=when_client_connects,
         when_client_disconnects=when_client_disconnects,
     )
-    server.set_server(s)
+    server.bt_server = s
     pause()
 
 

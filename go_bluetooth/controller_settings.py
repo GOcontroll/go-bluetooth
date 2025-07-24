@@ -1,7 +1,8 @@
 import rfcommServerConstants as commands
 import server
 from common import get_line_content
-
+import time
+import subprocess
 
 def controller_settings(commandnmbr, arg):
     level1 = ord(arg[0])
@@ -10,6 +11,8 @@ def controller_settings(commandnmbr, arg):
     # change the bluetooth name
     if level1 == commands.SET_CONTROLLER_SETTINGS:
         try:
+            if ":" in arg:
+                server.send(chr(commandnmbr) + chr(commands.SET_CONTROLLER_SETTINGS) + "0")
             if "GOcontroll" in arg:
                 write_device_name(arg)
             else:
@@ -22,7 +25,7 @@ def controller_settings(commandnmbr, arg):
     # gather information to display
     elif level1 == commands.INIT_CONTROLLER_SETTINGS:
         software_version = "missing"
-        server.time.sleep(
+        time.sleep(
             0.2
         )  # if the controller responds too quick the app gets wacky
         with open("/sys/firmware/devicetree/base/hardware", "r") as file:
@@ -31,10 +34,16 @@ def controller_settings(commandnmbr, arg):
             name = (
                 get_line_content("/etc/machine-info", "PRETTY_HOSTNAME")
                 .split("=")[1]
+                .split(":")[0] # no : allowed in name
                 .strip()
             )
         except FileNotFoundError or IndexError:
             name = "missing"
+        try:
+            res = subprocess.run(["uname", "-r"],check=True, text=True, stdout=subprocess.PIPE)
+            software_version = res.stdout.strip()
+        except subprocess.CalledProcessError:
+            pass
         server.send(
             chr(commandnmbr)
             + chr(commands.INIT_CONTROLLER_SETTINGS)

@@ -6,6 +6,13 @@ import server
 current_passkey = ""
 trust_device = False
 
+def set_trust(trusted: bool):
+    global trust_device
+    trust_device = trusted
+
+def get_trust() -> bool:
+    global trust_device
+    return trust_device
 
 def set_passkey(key: str):
     global current_passkey
@@ -27,7 +34,7 @@ def verify_device(commandnmbr, arg):
         entered_key = ":".join(split_arg[:-1]).lower()
         entered_hash = hashlib.sha256(entered_key.encode()).hexdigest()
         if get_passkey() == entered_hash:
-            trust_device = True
+            set_trust(True)
             with open("/etc/bluetooth/trusted_devices.txt", "a") as add_trusted_device:
                 add_trusted_device.write(device_id + "\n")
             request_verification(commands.DEVICE_VERIFICATION_SUCCESS)
@@ -38,7 +45,7 @@ def verify_device(commandnmbr, arg):
         try:
             with open("/etc/bluetooth/trusted_devices.txt", "r") as trusted_devices:
                 if trusted_devices.read().find(arg) != -1:
-                    trust_device = True
+                    set_trust(True)
                     request_verification(commands.DEVICE_VERIFICATION_SUCCESS)
                 else:
                     request_verification(commands.DEVICE_VERIFICATION_MISSING)

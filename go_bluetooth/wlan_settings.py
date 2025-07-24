@@ -18,10 +18,10 @@ def wireless_settings(commandnmbr, arg):
     if level1 == commands.INIT_WIRELESS_SETTINGS:
         try:
             wifi_state = wifi.get_wifi()
-        except subprocess.CalledProcessError as ex:
+        except:
             wifi_state = True
             logger.error(f"could not get wifi state: {ex}")
-
+        logger.debug(f"wifi state: {wifi_state}")
         if wifi_state:
             try:
                 status = wifi.get_wifi_mode()
@@ -29,7 +29,7 @@ def wireless_settings(commandnmbr, arg):
                 logger.error(f"could not get wifi mode: {ex}")
                 status = "ap"
         else:
-            "off"
+            status = "off"
 
         connection_status = str(networking.connectivity_state())
 
@@ -216,93 +216,31 @@ def wireless_settings(commandnmbr, arg):
 
     # switch between access point or wifi receiver mode
     elif level1 == commands.SWITCH_WIRELESS_MODE:
-        try:
-            test = open("/etc/modprobe.d/brcmfmac.conf", "r")
-            test.close()
-            if arg != "off":
-                os.remove("/etc/modprobe.d/brcmfmac.conf")
-                wifi_was_on = False
-        except:
-            wifi_was_on = True
-        # to make the switch permanent all wifi connections need to have their autoconnect settings altered
-        # so all wifi connections need to be gathered
-        stdout = subprocess.run(
-            ["nmcli", "-t", "con"], stdout=subprocess.PIPE, text=True
-        )
-        stdout = stdout.stdout[:-1].split("\n")
-        wifi_connections = []
-        for i, con in enumerate(stdout):
-            if "wireless" in con:
-                if "GOcontroll-AP" not in con:
-                    wifi_connections.append(con.split(":")[0])
         if arg == "ap":
-            for con in wifi_connections:
-                subprocess.run(
-                    ["nmcli", "con", "mod", con, "connection.autoconnect", "no"]
-                )
-            if not wifi_was_on:
-                subprocess.run(["modprobe", "brcmfmac"])
-                time.sleep(2)
-            subprocess.run(
-                [
-                    "nmcli",
-                    "con",
-                    "mod",
-                    "GOcontroll-AP",
-                    "connection.autoconnect",
-                    "yes",
-                ]
+            if not wifi.get_wifi():
+                wifi.set_wifi(True)
+                time.sleep(1)
+            wifi.activate_ap()
+            time.sleep(2)
+
+            server.send(
+                chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "ap"
             )
-            stdout = subprocess.run(
-                ["nmcli", "con", "up", "GOcontroll-AP"],
-                stdout=subprocess.PIPE,
-                text=True,
-            )
-            result = stdout.stdout
-            if "successfully" in result:
-                server.send(
-                    chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "ap"
-                )
-            else:
-                server.send(
-                    chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "error"
-                )
 
         elif arg == "wifi":
-            for con in wifi_connections:
-                subprocess.run(
-                    ["nmcli", "con", "mod", con, "connection.autoconnect", "yes"]
-                )
-            subprocess.run(
-                ["nmcli", "con", "mod", "GOcontroll-AP", "connection.autoconnect", "no"]
+            if not wifi.get_wifi():
+                wifi.set_wifi(True)
+                time.sleep(1)
+            wifi.deactivate_ap()
+            time.sleep(2)
+            server.send(
+                chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "wifi"
             )
-            if wifi_was_on:
-                stdout = subprocess.run(
-                    ["nmcli", "con", "down", "GOcontroll-AP"],
-                    stdout=subprocess.PIPE,
-                    text=True,
-                )
-                result = stdout.stdout
-            else:
-                subprocess.run(["modprobe", "brcmfmac"])
-                time.sleep(2)
-                result = "successfully"
-            if "successfully" in result:
-                server.send(
-                    chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "wifi"
-                )
-            else:
-                server.send(
-                    chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "error"
-                )
 
         elif arg == "off":
-            try:
-                with open("/etc/modprobe.d/brcmfmac.conf", "x") as wifi_conf:
-                    wifi_conf.write("blacklist brcmfmac")
-            except:
-                pass
-            subprocess.run(["modprobe", "-r", "brcmfmac"])
+            if wifi.get_wifi():
+                wifi.set_wifi(False)
+            time.sleep(2)
             server.send(chr(commandnmbr) + chr(commands.SWITCH_WIRELESS_MODE) + "off")
 
         else:

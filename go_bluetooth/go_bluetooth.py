@@ -12,7 +12,6 @@ import auth
 
 import rfcommServerConstants as commands
 import server
-from auth import verify_device, set_passkey
 from bluedot.btcomm import BluetoothServer
 from can_settings import can_settings
 from conf import get_features, get_conf
@@ -194,7 +193,7 @@ def reboot_controller():
 def command_list(byte, string):
     string = string.decode("utf-8")
     if byte == commands.VERIFY_DEVICE and get_features().get("verify_device", False):
-        verify_device(byte, string)
+        auth.verify_device(byte, string)
         return
     elif byte == commands.UPDATE_CONTROLLER and get_features().get(
         "update_controller", False
@@ -257,12 +256,12 @@ def command_list(byte, string):
 
 # function that gets called when the controller receives a message
 def data_received(data):
-    logger.debug(f"incoming:\n{data}\ntrusted: {auth.trust_device}")
+    logger.debug(f"incoming:\n{data}\ntrusted: {auth.get_trust()}")
     try:
         global transfer_mode
         first_byte = data[0]
         if (
-            auth.trust_device
+            auth.get_trust()
             or first_byte == commands.VERIFY_DEVICE
             or first_byte == commands.REQUEST_ENABLED_FEATURES
         ):
@@ -302,7 +301,7 @@ def when_client_connects():
         pass
     except Exception as ex:
         logger.error(f"Unknown error when trying to init the status led thread:\n{ex}")
-    auth.trust_device = False
+    auth.set_trust(False)
     request_enabled_features(
         commands.REQUEST_ENABLED_FEATURES, chr(commands.INIT_FEATURES)
     )
@@ -349,7 +348,7 @@ def main():
     setup_logging()
     logger.info("go-bluetooth server starting")
     conf = get_conf()
-    set_passkey(conf.get("pass_hash"))
+    auth.set_passkey(conf.get("pass_hash"))
     s = BluetoothServer(
         data_received,
         encoding=None,
